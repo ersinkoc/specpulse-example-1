@@ -1,27 +1,143 @@
+const jwt = require('jsonwebtoken');
+const { promisify } = require('util');
 const tokenService = require('../services/tokenService');
 const authService = require('../services/authService');
+const sessionService = require('../services/sessionService');
 const logger = require('../../shared/utils/logger');
 
 /**
- * JWT Authentication Middleware
- * Verifies JWT tokens and attaches user information to the request object
+ * JWT Verification Helper Class
+ * Provides comprehensive JWT verification with blacklist checking
+ */
+class JWTVerifier {
+  constructor() {
+    this.jwtSecret = process.env.JWT_SECRET;
+    this.jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
+    this.issuer = process.env.JWT_ISSUER || 'specpulse-auth';
+    this.audience = process.env.JWT_AUDIENCE || 'specpulse-users';
+
+    if (!this.jwtSecret) {
+      throw new Error('JWT_SECRET environment variable is required');
+    }
+
+    // JWT verification options
+    this.verifyOptions = {
+      issuer: this.issuer,
+      audience: this.audience,
+      algorithms: ['HS256'],
+      clockTolerance: 30 // 30 seconds clock skew tolerance
+    };
+
+    // Async JWT verification
+    this.verifyAsync = promisify(jwt.verify);
+    this.decodeAsync = promisify(jwt.decode);
+  }
+
+  /**
+   * Extract JWT token from request
+   */
+  extractToken(req) {
+    // Extract from Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      return authHeader.substring(7);
+    }
+
+    // Extract from cookies
+    if (req.cookies && req.cookies.accessToken) {
+      return req.cookies.accessToken;
+    }
+
+    // Extract from query parameters (for WebSocket connections)
+    if (req.query && req.query.token) {
+      return req.query.token;
+    }
+
+    return null;
+  }
+
+  /**
+   * Verify JWT token with comprehensive checking
+   */
+  async verifyToken(token, secret = this.jwtSecret) {
+    try {
+      return await this.verifyAsync(token, secret, this.verifyOptions);
+    } catch (error) {
+      // Re-throw with more descriptive error
+      if (error.name === 'TokenExpiredError') {
+        throw new Error('Token expired');
+      } else if (error.name === 'JsonWebTokenError') {
+        throw new Error('Invalid token');
+      } else if (error.name === 'NotBeforeError') {
+        throw new Error('Token not active');
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Check if token is blacklisted
+   */
+  async isTokenBlacklisted(token, jti) {
+    try {
+      if (!jti) {
+        // If no JTI, check the actual token
+        const decoded = jwt.decode(token);
+        jti = decoded?.jti;
+      }
+
+      if (!jti) {
+        return false; // No JTI, cannot blacklist
+      }
+
+      return await sessionService.isTokenBlacklisted(jti);
+    } catch (error) {
+      logger.error('Error checking token blacklist', { error: error.message, jti });
+      return false; // Fail open - allow token if blacklist check fails
+    }
+  }
+
+  /**
+   * Generate request ID for tracing
+   */
+  generateRequestId() {
+    return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+}
+
+const jwtVerifier = new JWTVerifier();
+
+/**
+ * Enhanced JWT Authentication Middleware
+ * Verifies JWT tokens with blacklist checking and comprehensive validation
  */
 const authenticate = async (req, res, next) => {
   try {
-    // Extract token from Authorization header
-    const authHeader = req.headers.authorization;
-    const token = tokenService.extractTokenFromHeader(authHeader);
+    // Extract token from various sources
+    const token = jwtVerifier.extractToken(req);
 
     if (!token) {
       return res.status(401).json({
         success: false,
         error: 'AuthenticationError',
-        message: 'Access token is required'
+        message: 'Access token is required',
+        code: 'TOKEN_REQUIRED'
       });
     }
 
-    // Verify the token
-    const decoded = tokenService.verifyToken(token, 'access');
+    // Verify token and get payload
+    const decoded = await jwtVerifier.verifyToken(token);
+
+    // Check if token is blacklisted
+    if (await jwtVerifier.isTokenBlacklisted(token, decoded.jti)) {
+      return res.status(401).json({
+        success: false,
+        error: 'TokenRevokedError',
+        message: 'Token has been revoked',
+        code: 'TOKEN_REVOKED'
+      });
+    }
 
     // Get user information from database to ensure user still exists and is active
     const user = await authService.getUserById(decoded.sub);
@@ -30,7 +146,8 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         error: 'AuthenticationError',
-        message: 'User not found'
+        message: 'User not found',
+        code: 'USER_NOT_FOUND'
       });
     }
 
@@ -38,18 +155,56 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         error: 'AuthenticationError',
-        message: 'User account is inactive'
+        message: 'User account is inactive',
+        code: 'ACCOUNT_INACTIVE'
+      });
+    }
+
+    // Check if user's password has been changed after token was issued
+    if (decoded.iat && user.passwordChangedAt) {
+      const tokenIssuedAt = new Date(decoded.iat * 1000);
+      const passwordChangedAt = new Date(user.passwordChangedAt);
+
+      if (passwordChangedAt > tokenIssuedAt) {
+        return res.status(401).json({
+          success: false,
+          error: 'TokenInvalidError',
+          message: 'Token invalid due to password change',
+          code: 'PASSWORD_CHANGED'
+        });
+      }
+    }
+
+    // Check if email verification is required and user is not verified
+    if (user.emailVerificationRequired && !user.emailVerified) {
+      return res.status(403).json({
+        success: false,
+        error: 'EmailVerificationRequired',
+        message: 'Email verification required',
+        code: 'EMAIL_NOT_VERIFIED'
       });
     }
 
     // Attach user information to request
     req.user = user.toJSON();
-    req.token = decoded;
+    req.token = {
+      jti: decoded.jti,
+      type: decoded.type,
+      iat: decoded.iat,
+      exp: decoded.exp,
+      scope: decoded.scope || []
+    };
 
-    // Log authentication
-    logger.debug('User authenticated', {
-      userId: user.id,
-      email: user.email,
+    // Add request tracing for audit logs
+    req.requestId = jwtVerifier.generateRequestId();
+    req.authTimestamp = Date.now();
+
+    // Log successful authentication
+    logger.debug('User authenticated successfully', {
+      userId: req.user.id,
+      email: req.user.email,
+      requestId: req.requestId,
+      tokenType: req.token.type,
       path: req.path,
       method: req.method
     });
@@ -57,28 +212,48 @@ const authenticate = async (req, res, next) => {
     next();
 
   } catch (error) {
-    logger.error('Authentication middleware error:', error);
+    logger.error('Authentication middleware error:', {
+      error: error.message,
+      requestId: req.requestId,
+      userAgent: req.get('User-Agent'),
+      ip: req.ip
+    });
 
-    if (error.message.includes('expired')) {
+    // Handle specific JWT errors
+    if (error.message === 'Token expired') {
       return res.status(401).json({
         success: false,
         error: 'TokenExpiredError',
-        message: 'Access token has expired'
+        message: 'Access token has expired',
+        code: 'TOKEN_EXPIRED'
       });
     }
 
-    if (error.message.includes('Invalid token') || error.message.includes('blacklisted')) {
+    if (error.message === 'Invalid token') {
       return res.status(401).json({
         success: false,
         error: 'InvalidTokenError',
-        message: 'Invalid or expired access token'
+        message: 'Invalid access token',
+        code: 'INVALID_TOKEN'
       });
     }
 
+    if (error.message === 'Token not active') {
+      return res.status(401).json({
+        success: false,
+        error: 'TokenNotActiveError',
+        message: 'Token is not yet active',
+        code: 'TOKEN_NOT_ACTIVE'
+      });
+    }
+
+    // Generic authentication error
     return res.status(401).json({
       success: false,
       error: 'AuthenticationError',
-      message: 'Authentication failed'
+      message: 'Authentication failed',
+      code: 'AUTH_FAILED',
+      timestamp: new Date().toISOString()
     });
   }
 };

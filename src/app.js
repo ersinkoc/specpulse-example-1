@@ -4,6 +4,7 @@ const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
 const config = require('./shared/config/environment');
+const oAuthService = require('./auth/services/oauthService');
 const securityMiddleware = require('./auth/middleware/securityMiddleware');
 
 // Import routes
@@ -13,14 +14,14 @@ const authRoutes = require('./auth/routes/authRoutes');
 const oauthRoutes = require('./auth/routes/oauthRoutes');
 const userRoutes = require('./auth/routes/userRoutes');
 const preferencesRoutes = require('./routes/preferences');
-const notificationsRoutes = require('./routes/notifications');
-const adminRoutes = require('./routes/admin');
+// const notificationsRoutes = require('./routes/notifications'); // Temporarily disabled due to Redis dependency
+// const adminRoutes = require('./routes/admin'); // Temporarily disabled due to notificationService dependency
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
 const { apiRateLimit, taskRateLimit } = require('./middleware/rateLimit');
 const {
-  securityMiddleware,
+  securityMiddleware: securityUtils,
   sanitizeInput,
   validateRequest,
   validateApiKey,
@@ -49,7 +50,7 @@ app.use(passport.session());
 
 // Security middleware
 app.use(helmet());
-app.use(securityMiddleware);
+app.use(securityUtils);
 app.use(validateRequestSize);
 app.use(validateRequest);
 
@@ -101,10 +102,10 @@ app.use('/user', userRoutes);
 app.use('/api/preferences', preferencesRoutes);
 
 // Notification management routes
-app.use('/api/notifications', notificationsRoutes);
+// app.use('/api/notifications', notificationsRoutes); // Temporarily disabled due to Redis dependency
 
 // Admin routes
-app.use('/api/admin', adminRoutes);
+// app.use('/api/admin', adminRoutes); // Temporarily disabled due to notificationService dependency
 
 // Serve uploaded files (avatars, etc.)
 app.use('/uploads', express.static('uploads'));

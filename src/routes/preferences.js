@@ -1,6 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const auth = require('../auth/middleware/authMiddleware');
+const { requireRole } = require('../auth/middleware/rbacMiddleware');
 const userPreferencesService = require('../services/userPreferencesService');
 const logger = require('../shared/utils/logger');
 
@@ -265,7 +266,7 @@ router.get('/quiet-hours/status', auth.authenticate, async (req, res) => {
  */
 router.get('/statistics',
   auth.authenticate,
-  auth.requireRole(['admin']),
+  requireRole('admin'),
   async (req, res) => {
     try {
       const statistics = await userPreferencesService.getPreferencesStatistics();

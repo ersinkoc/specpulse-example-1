@@ -55,32 +55,32 @@ router.post('/logout',
   authController.logout
 );
 
-router.post('/logout-all',
-  authenticate,
-  authController.logoutAll
-);
+// router.post('/logout-all',
+//   authenticate,
+//   authController.logoutAll
+// );
 
 // Password management routes with rate limiting and validation
-router.post('/forgot-password',
-  securityMiddleware.createPasswordResetLimiter(),
-  securityMiddleware.validateInput({ body: requestPasswordResetSchema }),
-  authController.forgotPassword
-);
+// router.post('/forgot-password',
+//   securityMiddleware.createPasswordResetLimiter(),
+//   securityMiddleware.validateInput({ body: requestPasswordResetSchema }),
+//   authController.forgotPassword
+// );
 
-router.post('/reset-password',
-  securityMiddleware.createStrictLimiter({ max: 3 }),
-  securityMiddleware.validateInput({ body: resetPasswordSchema }),
-  securityMiddleware.validatePasswordStrength,
-  authController.resetPassword
-);
+// router.post('/reset-password',
+//   securityMiddleware.createStrictLimiter({ max: 3 }),
+//   securityMiddleware.validateInput({ body: resetPasswordSchema }),
+//   securityMiddleware.validatePasswordStrength,
+//   authController.resetPassword
+// );
 
-router.post('/change-password',
-  authenticate,
-  securityMiddleware.createStrictLimiter({ max: 5 }),
-  securityMiddleware.validateInput({ body: changePasswordSchema }),
-  securityMiddleware.validatePasswordStrength,
-  authController.changePassword
-);
+// router.post('/change-password',
+//   authenticate,
+//   securityMiddleware.createStrictLimiter({ max: 5 }),
+//   securityMiddleware.validateInput({ body: changePasswordSchema }),
+//   securityMiddleware.validatePasswordStrength,
+//   authController.changePassword
+// );
 
 // Token management routes
 router.post('/refresh-token',
@@ -88,21 +88,21 @@ router.post('/refresh-token',
   authController.refreshToken
 );
 
-router.get('/token-info',
-  authenticate,
-  authController.getTokenInfo
-);
+// router.get('/token-info',
+//   authenticate,
+//   authController.getTokenInfo
+// );
 
 // User routes (protected)
-router.get('/me',
-  authenticate,
-  authController.getCurrentUser
-);
+// router.get('/me',
+//   authenticate,
+//   authController.getCurrentUser
+// );
 
-router.put('/me',
-  authenticate,
-  securityMiddleware.validateInput({ body: updateProfileSchema }),
-  authController.updateCurrentUser
-);
+// router.put('/me',
+//   authenticate,
+//   securityMiddleware.validateInput({ body: updateProfileSchema }),
+//   authController.updateCurrentUser
+// );
 
 module.exports = router;

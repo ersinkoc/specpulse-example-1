@@ -1,7 +1,7 @@
 const { v4: uuidv4 } = require('uuid');
 const db = require('../database/connection');
 const logger = require('../shared/utils/logger');
-const redis = require('../config/redis');
+// const redis = require('../config/redis'); // Disabled for development
 const config = require('../config');
 const userPreferencesService = require('./userPreferencesService');
 const notificationEmailService = require('./notificationEmailService');
@@ -13,27 +13,33 @@ const notificationPriorityService = require('./notificationPriorityService');
  */
 class NotificationService {
   constructor() {
-    this.publisher = redis.publisher;
-    this.subscriber = redis.subscriber;
-    this.setupRedisSubscriptions();
+    // Redis disabled for development
+    logger.info('NotificationService initialized without Redis');
+    // this.publisher = redis.publisher;
+    // this.subscriber = redis.subscriber;
+    // this.setupRedisSubscriptions();
   }
 
   /**
    * Setup Redis subscriptions for notification channels
    */
   setupRedisSubscriptions() {
+    // Redis disabled for development
+    logger.info('Redis subscriptions disabled in development mode');
+    return;
+
     // Subscribe to notification channels
-    this.subscriber.subscribe('notifications:send', (message) => {
-      this.handleNotificationSend(JSON.parse(message));
-    });
+    // this.subscriber.subscribe('notifications:send', (message) => {
+    //   this.handleNotificationSend(JSON.parse(message));
+    // });
 
-    this.subscriber.subscribe('notifications:read', (message) => {
-      this.handleNotificationRead(JSON.parse(message));
-    });
+    // this.subscriber.subscribe('notifications:read', (message) => {
+    //   this.handleNotificationRead(JSON.parse(message));
+    // });
 
-    this.subscriber.subscribe('notifications:broadcast', (message) => {
-      this.handleNotificationBroadcast(JSON.parse(message));
-    });
+    // this.subscriber.subscribe('notifications:broadcast', (message) => {
+    //   this.handleNotificationBroadcast(JSON.parse(message));
+    // });
   }
 
   /**
@@ -299,7 +305,7 @@ class NotificationService {
       }
 
       // Send via WebSocket
-      await this.publisher.publish(
+      // await this.publisher.publish(  // Redis disabled in development
         `notifications:user:${userId}`,
         JSON.stringify({
           type: 'notification',
@@ -541,7 +547,7 @@ class NotificationService {
       const notification = result.rows[0];
 
       // Publish read status update
-      await this.publisher.publish(
+      // await this.publisher.publish(  // Redis disabled in development
         `notifications:user:${userId}`,
         JSON.stringify({
           type: 'notification_read',
@@ -577,7 +583,7 @@ class NotificationService {
 
       // Publish read status updates
       for (const notification of updatedNotifications) {
-        await this.publisher.publish(
+        // await this.publisher.publish(  // Redis disabled in development
           `notifications:user:${userId}`,
           JSON.stringify({
             type: 'notification_read',
@@ -630,7 +636,7 @@ class NotificationService {
 
       // Publish read status updates
       for (const notification of updatedNotifications) {
-        await this.publisher.publish(
+        // await this.publisher.publish(  // Redis disabled in development
           `notifications:user:${userId}`,
           JSON.stringify({
             type: 'notification_read',
@@ -668,7 +674,7 @@ class NotificationService {
       }
 
       // Publish deletion event
-      await this.publisher.publish(
+      // await this.publisher.publish(  // Redis disabled in development
         `notifications:user:${userId}`,
         JSON.stringify({
           type: 'notification_deleted',
@@ -785,7 +791,7 @@ class NotificationService {
    * Publish notification to Redis
    */
   async publishNotification(notification) {
-    await this.publisher.publish(
+    // await this.publisher.publish(  // Redis disabled in development
       'notifications:send',
       JSON.stringify({
         notificationId: notification.id,
@@ -876,7 +882,7 @@ class NotificationService {
       }
 
       // Publish action click event
-      await this.publisher.publish(
+      // await this.publisher.publish(  // Redis disabled in development
         `notifications:user:${userId}`,
         JSON.stringify({
           type: 'notification_action_clicked',

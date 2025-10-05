@@ -1,34 +1,16 @@
 const rateLimit = require('express-rate-limit');
-const RedisStore = require('rate-limit-redis');
-const Redis = require('ioredis');
 const config = require('../../shared/config/environment');
 const logger = require('../../shared/utils/logger');
 
 class SecurityMiddleware {
   constructor() {
-    this.redisClient = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: process.env.REDIS_PORT || 6379,
-      password: process.env.REDIS_PASSWORD,
-      retryDelayOnFailover: 100,
-      maxRetriesPerRequest: 3
-    });
-
-    this.redisClient.on('error', (err) => {
-      logger.error('Redis connection error:', err);
-    });
-
-    this.redisClient.on('connect', () => {
-      logger.info('Redis connected for rate limiting');
-    });
+    // Using memory store for development
+    logger.info('SecurityMiddleware initialized with memory store');
   }
 
   // General API rate limiting
   createApiLimiter(options = {}) {
     return rateLimit({
-      store: new RedisStore({
-        sendCommand: (...args) => this.redisClient.call(...args),
-      }),
       windowMs: options.windowMs || 15 * 60 * 1000, // 15 minutes
       max: options.max || 100, // limit each IP to 100 requests per windowMs
       message: {
@@ -61,10 +43,7 @@ class SecurityMiddleware {
   // Strict rate limiting for sensitive operations
   createStrictLimiter(options = {}) {
     return rateLimit({
-      store: new RedisStore({
-        sendCommand: (...args) => this.redisClient.call(...args),
-      }),
-      windowMs: options.windowMs || 15 * 60 * 1000, // 15 minutes
+            windowMs: options.windowMs || 15 * 60 * 1000, // 15 minutes
       max: options.max || 5, // Very strict limit
       message: {
         success: false,
@@ -91,10 +70,7 @@ class SecurityMiddleware {
   // Authentication-specific rate limiting
   createAuthLimiter(options = {}) {
     return rateLimit({
-      store: new RedisStore({
-        sendCommand: (...args) => this.redisClient.call(...args),
-      }),
-      windowMs: options.windowMs || 15 * 60 * 1000, // 15 minutes
+            windowMs: options.windowMs || 15 * 60 * 1000, // 15 minutes
       max: options.max || 10, // 10 authentication attempts per 15 minutes
       message: {
         success: false,
@@ -124,10 +100,7 @@ class SecurityMiddleware {
   // Password reset rate limiting
   createPasswordResetLimiter(options = {}) {
     return rateLimit({
-      store: new RedisStore({
-        sendCommand: (...args) => this.redisClient.call(...args),
-      }),
-      windowMs: options.windowMs || 60 * 60 * 1000, // 1 hour
+            windowMs: options.windowMs || 60 * 60 * 1000, // 1 hour
       max: options.max || 3, // 3 password reset requests per hour
       message: {
         success: false,
@@ -154,9 +127,6 @@ class SecurityMiddleware {
   // Registration rate limiting
   createRegistrationLimiter(options = {}) {
     return rateLimit({
-      store: new RedisStore({
-        sendCommand: (...args) => this.redisClient.call(...args),
-      }),
       windowMs: options.windowMs || 60 * 60 * 1000, // 1 hour
       max: options.max || 5, // 5 registrations per hour per IP
       message: {
@@ -182,10 +152,7 @@ class SecurityMiddleware {
   // Email verification rate limiting
   createEmailVerificationLimiter(options = {}) {
     return rateLimit({
-      store: new RedisStore({
-        sendCommand: (...args) => this.redisClient.call(...args),
-      }),
-      windowMs: options.windowMs || 60 * 60 * 1000, // 1 hour
+            windowMs: options.windowMs || 60 * 60 * 1000, // 1 hour
       max: options.max || 5, // 5 verification attempts per hour
       message: {
         success: false,

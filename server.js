@@ -1,8 +1,8 @@
 const app = require('./src/app');
 const config = require('./src/config');
-const WebSocketServer = require('./src/websocket/server');
-const notificationService = require('./src/services/notificationService');
-const notificationEmailService = require('./src/services/notificationEmailService');
+// const WebSocketServer = require('./src/websocket/server'); // Temporarily disabled due to Redis dependency
+// const notificationService = require('./src/services/notificationService'); // Temporarily disabled due to Redis dependency
+// const notificationEmailService = require('./src/services/notificationEmailService'); // Temporarily disabled due to Redis dependency
 const logger = require('./src/shared/utils/logger');
 
 const PORT = config.port;
@@ -17,28 +17,28 @@ const server = app.listen(PORT, () => {
 });
 
 // Initialize WebSocket server
-const wsServer = new WebSocketServer(server);
+// const wsServer = new WebSocketServer(server); // Temporarily disabled due to Redis dependency
 
 // Make wsServer available globally for other modules
-global.wsServer = wsServer;
+// global.wsServer = wsServer; // Temporarily disabled due to Redis dependency
 
 // Initialize notification email service
-notificationEmailService.initialize().catch(error => {
-  logger.warn('Failed to initialize notification email service:', error);
-});
+// notificationEmailService.initialize().catch(error => {
+//   logger.warn('Failed to initialize notification email service:', error);
+// });
 
 // Start scheduled notification processor
-notificationService.startScheduledNotificationProcessor();
+// notificationService.startScheduledNotificationProcessor();
 
 // Start notification retry processor
-notificationService.startRetryProcessor();
+// notificationService.startRetryProcessor();
 
 // Graceful shutdown
 const gracefulShutdown = () => {
   logger.info('Received shutdown signal, closing server...');
 
   // Close WebSocket server
-  wsServer.shutdown();
+  // wsServer.shutdown(); // Temporarily disabled due to Redis dependency
 
   // Close HTTP server
   server.close(() => {

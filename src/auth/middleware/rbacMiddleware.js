@@ -241,7 +241,7 @@ const requireOwnership = (getUserIdFromParams, options = {}) => {
     const resourceUserId = getUserIdFromParams(req);
 
     if (!resourceUserId) {
-      return res.status(400). {
+      return res.status(400).json({
         success: false,
         error: 'InvalidRequest',
         message: 'Resource ID is required'
