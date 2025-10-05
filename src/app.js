@@ -136,5 +136,25 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
+// Start server
+const PORT = config.server.port || 3000;
+const server = app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📍 Environment: ${config.server.nodeEnv}`);
+  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`🔐 Auth endpoints: http://localhost:${PORT}/auth`);
+  console.log(`🌐 OAuth endpoints: http://localhost:${PORT}/oauth`);
+});
+
+// Handle server errors
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use`);
+  } else {
+    console.error('❌ Server error:', error);
+  }
+  process.exit(1);
+});
+
 // Export app for use with server.js and WebSocket integration
 module.exports = app;
