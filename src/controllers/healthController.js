@@ -1,4 +1,4 @@
-const { logger } = require('../shared/utils/logger');
+const logger = require('../shared/utils/logger');
 
 class HealthController {
   static async checkHealth(req, res) {
@@ -32,7 +32,8 @@ class HealthController {
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      logger.error('Health check failed', { error: error?.message || 'Unknown error' });
+      const errorMessage = error && typeof error === 'object' ? error.message : (error || 'Unknown error');
+      logger.error('Health check failed', { error: errorMessage });
       res.status(503).json({
         success: false,
         error: {
