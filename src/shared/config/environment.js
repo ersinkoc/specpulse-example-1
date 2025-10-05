@@ -28,6 +28,13 @@ const config = {
     port: parseInt(process.env.PORT) || 3000,
     host: process.env.HOST || 'localhost'
   },
+  aws: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+    region: process.env.AWS_REGION || 'us-east-1',
+    s3Bucket: process.env.AWS_S3_BUCKET || 'specpulse-avatars',
+    cdnBaseUrl: process.env.AWS_CDN_BASE_URL || null
+  },
 
   database: {
     host: process.env.DB_HOST,

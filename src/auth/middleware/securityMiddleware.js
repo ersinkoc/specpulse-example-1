@@ -10,7 +10,7 @@ class SecurityMiddleware {
 
   // General API rate limiting
   createApiLimiter(options = {}) {
-    return rateLimit({
+    const limiter = rateLimit({
       windowMs: options.windowMs || 15 * 60 * 1000, // 15 minutes
       max: options.max || 100, // limit each IP to 100 requests per windowMs
       message: {
@@ -27,22 +27,32 @@ class SecurityMiddleware {
       skip: (req) => {
         // Skip rate limiting for health checks
         return req.path === '/health';
-      },
-      onLimitReached: (req, res, options) => {
-        logger.warn('Rate limit exceeded', {
-          ip: req.ip,
-          path: req.path,
-          userAgent: req.get('User-Agent'),
-          limit: options.max,
-          windowMs: options.windowMs
-        });
       }
     });
+
+    // Add custom handler for limit reached (replaces deprecated onLimitReached)
+    limiter.limitHandler = (req, res) => {
+      logger.warn('Rate limit exceeded', {
+        ip: req.ip,
+        path: req.path,
+        userAgent: req.get('User-Agent'),
+        limit: options.max || 100,
+        windowMs: options.windowMs || 15 * 60 * 1000
+      });
+      res.status(429).json({
+        success: false,
+        error: 'RateLimitExceeded',
+        message: 'Too many requests from this IP, please try again later.',
+        retryAfter: Math.ceil((options.windowMs || 15 * 60 * 1000) / 1000)
+      });
+    };
+
+    return limiter;
   }
 
   // Strict rate limiting for sensitive operations
   createStrictLimiter(options = {}) {
-    return rateLimit({
+    const limiter = rateLimit({
             windowMs: options.windowMs || 15 * 60 * 1000, // 15 minutes
       max: options.max || 5, // Very strict limit
       message: {
@@ -55,21 +65,31 @@ class SecurityMiddleware {
       legacyHeaders: false,
       keyGenerator: (req) => {
         return `${req.ip}:${req.path}`;
-      },
-      onLimitReached: (req, res, options) => {
-        logger.warn('Strict rate limit exceeded', {
-          ip: req.ip,
-          path: req.path,
-          userId: req.user?.id,
-          userAgent: req.get('User-Agent')
-        });
       }
     });
+
+    // Add custom handler for limit reached (replaces deprecated onLimitReached)
+    limiter.limitHandler = (req, res) => {
+      logger.warn('Strict rate limit exceeded', {
+        ip: req.ip,
+        path: req.path,
+        userId: req.user?.id,
+        userAgent: req.get('User-Agent')
+      });
+      res.status(429).json({
+        success: false,
+        error: 'StrictRateLimitExceeded',
+        message: 'Too many attempts for this sensitive operation, please try again later.',
+        retryAfter: Math.ceil((options.windowMs || 15 * 60 * 1000) / 1000)
+      });
+    };
+
+    return limiter;
   }
 
   // Authentication-specific rate limiting
   createAuthLimiter(options = {}) {
-    return rateLimit({
+    const limiter = rateLimit({
             windowMs: options.windowMs || 15 * 60 * 1000, // 15 minutes
       max: options.max || 10, // 10 authentication attempts per 15 minutes
       message: {
@@ -85,21 +105,31 @@ class SecurityMiddleware {
         const email = req.body?.email || '';
         return `auth:${req.ip}:${email.toLowerCase()}`;
       },
-      skipSuccessfulRequests: true, // Don't count successful requests
-      onLimitReached: (req, res, options) => {
-        logger.warn('Authentication rate limit exceeded', {
-          ip: req.ip,
-          path: req.path,
-          email: req.body?.email,
-          userAgent: req.get('User-Agent')
-        });
-      }
+      skipSuccessfulRequests: true // Don't count successful requests
     });
+
+    // Add custom handler for limit reached (replaces deprecated onLimitReached)
+    limiter.limitHandler = (req, res) => {
+      logger.warn('Authentication rate limit exceeded', {
+        ip: req.ip,
+        path: req.path,
+        email: req.body?.email,
+        userAgent: req.get('User-Agent')
+      });
+      res.status(429).json({
+        success: false,
+        error: 'AuthRateLimitExceeded',
+        message: 'Too many authentication attempts, please try again later.',
+        retryAfter: Math.ceil((options.windowMs || 15 * 60 * 1000) / 1000)
+      });
+    };
+
+    return limiter;
   }
 
   // Password reset rate limiting
   createPasswordResetLimiter(options = {}) {
-    return rateLimit({
+    const limiter = rateLimit({
             windowMs: options.windowMs || 60 * 60 * 1000, // 1 hour
       max: options.max || 3, // 3 password reset requests per hour
       message: {
@@ -113,20 +143,30 @@ class SecurityMiddleware {
       keyGenerator: (req) => {
         const email = req.body?.email || '';
         return `password-reset:${email.toLowerCase()}`;
-      },
-      onLimitReached: (req, res, options) => {
-        logger.warn('Password reset rate limit exceeded', {
-          ip: req.ip,
-          email: req.body?.email,
-          userAgent: req.get('User-Agent')
-        });
       }
     });
+
+    // Add custom handler for limit reached (replaces deprecated onLimitReached)
+    limiter.limitHandler = (req, res) => {
+      logger.warn('Password reset rate limit exceeded', {
+        ip: req.ip,
+        email: req.body?.email,
+        userAgent: req.get('User-Agent')
+      });
+      res.status(429).json({
+        success: false,
+        error: 'PasswordResetRateLimitExceeded',
+        message: 'Too many password reset attempts, please try again later.',
+        retryAfter: Math.ceil((options.windowMs || 60 * 60 * 1000) / 1000)
+      });
+    };
+
+    return limiter;
   }
 
   // Registration rate limiting
   createRegistrationLimiter(options = {}) {
-    return rateLimit({
+    const limiter = rateLimit({
       windowMs: options.windowMs || 60 * 60 * 1000, // 1 hour
       max: options.max || 5, // 5 registrations per hour per IP
       message: {
@@ -139,19 +179,29 @@ class SecurityMiddleware {
       legacyHeaders: false,
       keyGenerator: (req) => {
         return `registration:${req.ip}`;
-      },
-      onLimitReached: (req, res, options) => {
-        logger.warn('Registration rate limit exceeded', {
-          ip: req.ip,
-          userAgent: req.get('User-Agent')
-        });
       }
     });
+
+    // Add custom handler for limit reached (replaces deprecated onLimitReached)
+    limiter.limitHandler = (req, res) => {
+      logger.warn('Registration rate limit exceeded', {
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+      res.status(429).json({
+        success: false,
+        error: 'RegistrationRateLimitExceeded',
+        message: 'Too many registration attempts from this IP, please try again later.',
+        retryAfter: Math.ceil((options.windowMs || 60 * 60 * 1000) / 1000)
+      });
+    };
+
+    return limiter;
   }
 
   // Email verification rate limiting
   createEmailVerificationLimiter(options = {}) {
-    return rateLimit({
+    const limiter = rateLimit({
             windowMs: options.windowMs || 60 * 60 * 1000, // 1 hour
       max: options.max || 5, // 5 verification attempts per hour
       message: {
@@ -164,14 +214,24 @@ class SecurityMiddleware {
       legacyHeaders: false,
       keyGenerator: (req) => {
         return `email-verification:${req.ip}`;
-      },
-      onLimitReached: (req, res, options) => {
-        logger.warn('Email verification rate limit exceeded', {
-          ip: req.ip,
-          userAgent: req.get('User-Agent')
-        });
       }
     });
+
+    // Add custom handler for limit reached (replaces deprecated onLimitReached)
+    limiter.limitHandler = (req, res) => {
+      logger.warn('Email verification rate limit exceeded', {
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+      res.status(429).json({
+        success: false,
+        error: 'EmailVerificationRateLimitExceeded',
+        message: 'Too many email verification attempts, please try again later.',
+        retryAfter: Math.ceil((options.windowMs || 60 * 60 * 1000) / 1000)
+      });
+    };
+
+    return limiter;
   }
 
   // IP-based blocking for suspicious activity

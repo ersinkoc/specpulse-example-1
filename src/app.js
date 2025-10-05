@@ -14,6 +14,8 @@ const authRoutes = require('./auth/routes/authRoutes');
 const oauthRoutes = require('./auth/routes/oauthRoutes');
 const userRoutes = require('./auth/routes/userRoutes');
 const preferencesRoutes = require('./routes/preferences');
+const profileRoutes = require('./routes/profileRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
 // const notificationsRoutes = require('./routes/notifications'); // Temporarily disabled due to Redis dependency
 // const adminRoutes = require('./routes/admin'); // Temporarily disabled due to notificationService dependency
 
@@ -100,6 +102,12 @@ app.use('/user', userRoutes);
 
 // Notification preferences routes
 app.use('/api/preferences', preferencesRoutes);
+
+// Profile management routes
+app.use('/api/profiles', profileRoutes);
+
+// File upload routes
+app.use('/api/upload', uploadRoutes);
 
 // Notification management routes
 // app.use('/api/notifications', notificationsRoutes); // Temporarily disabled due to Redis dependency
