@@ -22,7 +22,9 @@ class TaskController {
       const result = await TaskService.createTask({
         title: title.trim(),
         description: description ? description.trim() : '',
-        status: status || 'pending'
+        status: status || 'pending',
+        userId: req.user.sub,
+        userEmail: req.user.email
       });
 
       res.status(201).json({
@@ -64,7 +66,8 @@ class TaskController {
         page: pageNum,
         limit: limitNum,
         status,
-        search
+        search,
+        userId: req.user.sub
       });
 
       res.status(200).json({
