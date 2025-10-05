@@ -32,7 +32,7 @@ class HealthController {
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      logger.error('Health check failed', { error: error.message });
+      logger.error('Health check failed', { error: error?.message || 'Unknown error' });
       res.status(503).json({
         success: false,
         error: {
