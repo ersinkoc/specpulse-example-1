@@ -10,7 +10,12 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "lint": "eslint src/ tests/",
-    "lint:fix": "eslint src/ tests/ --fix"
+    "lint:fix": "eslint src/ tests/ --fix",
+    "security:scan": "node scripts/security-scan.js",
+    "security:audit": "npm audit --audit-level=moderate",
+    "security:check": "npm run security:scan && npm run security:audit",
+    "security:test": "node scripts/security-test-suite.js",
+    "security:all": "npm run security:scan && npm run security:audit && npm run security:test"
   },
   "keywords": [
     "express",
@@ -38,6 +43,7 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
     "nodemailer": "^6.9.3",
+    "node-cron": "^3.0.3",
     "passport": "^0.6.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
@@ -46,6 +52,7 @@
     "sharp": "^0.34.4",
     "socket.io": "^4.8.1",
     "uuid": "^9.0.0",
+    "winston": "^3.11.0",
     "zod": "^4.1.11"
   },
   "devDependencies": {
